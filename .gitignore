@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+data/
+*.sqlite
+.env
+.env.local
+/android
+/ios
