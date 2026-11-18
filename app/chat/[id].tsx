@@ -290,6 +290,7 @@ const styles = StyleSheet.create({
   outgoingWrap: { alignItems: "flex-start" },
   incomingWrap: { alignItems: "flex-end" },
   bubble: { maxWidth: "82%", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 18 },
+  failedBubble: { backgroundColor: "#FFEBEB", borderColor: "#FF4A4A", borderWidth: 1 },
   outgoingBubble: { backgroundColor: "#0B5FFF", borderBottomLeftRadius: 5 },
   incomingBubble: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E0E7F1", borderBottomRightRadius: 5 },
   messageText: { color: "#10233F", fontSize: 15, lineHeight: 22, textAlign: "right", writingDirection: "rtl" },
