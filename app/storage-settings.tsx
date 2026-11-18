@@ -10,6 +10,7 @@ import {
   clearMediaByKind,
   formatStorageSize,
   choosePublicStorageDirectory,
+  getPublicStorageDirectory,
 } from "@/lib/storage-manager";
 import type { MediaKind } from "@/lib/messenger-models";
 import { getNativePalette } from "@/lib/native-palette";
@@ -26,6 +27,7 @@ export default function StorageSettingsScreen() {
   const { colorScheme } = useThemeContext();
   const palette = getNativePalette(colorScheme);
   const [loading, setLoading] = useState(true);
+  const [storagePath, setStoragePath] = useState<string>("التخزين الداخلي / Downloads / hekma-aiman");
   const [usage, setUsage] = useState<{ total: number; byKind: Record<MediaKind, number> }>({
     total: 0,
     byKind: { image: 0, video: 0, audio: 0, file: 0 },
@@ -35,6 +37,10 @@ export default function StorageSettingsScreen() {
     setLoading(true);
     const result = await calculateStorageUsage();
     setUsage(result);
+    const currentPath = await getPublicStorageDirectory();
+    if (currentPath) {
+      setStoragePath(currentPath);
+    }
     setLoading(false);
   };
 
@@ -81,13 +87,24 @@ export default function StorageSettingsScreen() {
     );
   };
 
+  const handleChangeStoragePath = async () => {
+    const ok = await choosePublicStorageDirectory();
+    if (ok) {
+      const updatedPath = await getPublicStorageDirectory();
+      if (updatedPath) setStoragePath(updatedPath);
+      Alert.alert("تم تحديث المسار", "تم تعيين مسار التخزين العام بنجاح لتوجيه الملفات المحفوظة إليه مباشرة.");
+    } else {
+      Alert.alert("تعذر اختيار المجلد", "اسمح للتطبيق باختيار مجلد في التخزين الداخلي ثم حاول مرة أخرى.");
+    }
+  };
+
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} className="bg-background" containerClassName="bg-background">
       <View style={[styles.topBar, { backgroundColor: palette.surface, borderBottomColor: palette.border }]}>
         <Pressable accessibilityLabel="الرجوع" onPress={() => router.back()} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <AppIcon name="chevron-left" size={25} color={palette.text} />
+          <AppIcon name="chevron-right" size={25} color={palette.text} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>إدارة التخزين</Text>
+        <Text style={[styles.title, { color: palette.text }]}>إدارة التخزين والبيانات</Text>
         <View style={styles.back} />
       </View>
 
@@ -101,6 +118,24 @@ export default function StorageSettingsScreen() {
             {loading ? "..." : formatStorageSize(usage.total)}
           </Text>
         </View>
+
+        {/* Telegram-style Storage Path Selector */}
+        <Text style={[styles.section, { color: palette.muted }]}>مسار التخزين</Text>
+        <Pressable
+          onPress={() => void handleChangeStoragePath()}
+          style={({ pressed }) => [styles.pathCard, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}
+        >
+          <View style={[styles.pathIconBox, { backgroundColor: "#EAF1FF" }]}>
+            <AppIcon name="folder-open" size={22} color="#0B5FFF" />
+          </View>
+          <View style={styles.pathCopy}>
+            <Text style={[styles.pathTitle, { color: palette.text }]}>مجلد التحميلات والتخزين العام</Text>
+            <Text numberOfLines={1} style={[styles.pathSubtitle, { color: palette.muted }]}>
+              {storagePath}
+            </Text>
+          </View>
+          <AppIcon name="chevron-left" size={20} color={palette.muted} />
+        </Pressable>
 
         <Text style={[styles.section, { color: palette.muted }]}>التفاصيل حسب النوع</Text>
 
@@ -142,8 +177,6 @@ export default function StorageSettingsScreen() {
           </View>
         )}
 
-        <Pressable onPress={async () => { const ok = await choosePublicStorageDirectory(); Alert.alert(ok ? "تم إنشاء المجلد" : "تعذر إنشاء المجلد", ok ? "تم تجهيز مجلد hekma-aiman ومجلداته في المكان الذي اخترته. ستبقى نسخة التشغيل داخل كاش التطبيق لتعمل دون اتصال." : "اسمح للتطبيق باختيار مجلد في التخزين الداخلي ثم حاول مرة أخرى."); }} style={({ pressed }) => [styles.backupButton, { backgroundColor: palette.surface, borderColor: palette.primary }, pressed && styles.pressed]}><AppIcon name="folder-open" size={19} color={palette.primary} /><Text style={[styles.backupText, { color: palette.primary }]}>تهيئة مجلد النسخ الاحتياطي</Text></Pressable>
-
         {usage.total > 0 ? (
           <Pressable onPress={handleClearAll} style={({ pressed }) => [styles.clearAll, pressed && styles.pressed]}>
             <AppIcon name="delete-forever" size={20} color="#C83D4B" />
@@ -154,7 +187,7 @@ export default function StorageSettingsScreen() {
         <View style={[styles.note, { backgroundColor: palette.surfaceRaised }]}>
           <AppIcon name="info-outline" size={18} color={palette.primary} />
           <Text style={[styles.noteText, { color: palette.text }]}>
-            يتم تخزين الملفات محلياً على هذا الجهاز. حذفها لا يؤثر على الملفات الموجودة على الخادم.
+            يتم تخزين الملفات مؤقتاً لضمان العمل بدون إنترنت، ويتم حفظ المرفقات المباشرة في مسار التخزين العام المحدد لتسهيل الوصول إليها عبر مدير الملفات.
           </Text>
         </View>
       </ScrollView>
@@ -165,26 +198,29 @@ export default function StorageSettingsScreen() {
 const styles = StyleSheet.create({
   topBar: { height: 64, paddingHorizontal: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1 },
   back: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 20 },
-  title: { fontSize: 18, fontWeight: "900" },
+  title: { fontSize: 18, fontWeight: "900", writingDirection: "rtl", textAlign: "right" },
   scroll: { flexGrow: 1, padding: 20 },
   hero: { alignItems: "center", padding: 24, borderRadius: 20, marginBottom: 20 },
   heroIcon: { width: 64, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 12 },
-  heroLabel: { fontSize: 13, fontWeight: "700" },
-  heroValue: { fontSize: 32, fontWeight: "900", marginTop: 4 },
+  heroLabel: { fontSize: 13, fontWeight: "700", writingDirection: "rtl", textAlign: "center" },
+  heroValue: { fontSize: 32, fontWeight: "900", marginTop: 4, writingDirection: "rtl", textAlign: "center" },
   section: { fontSize: 13, fontWeight: "900", textAlign: "right", writingDirection: "rtl", marginBottom: 8, marginTop: 10 },
+  pathCard: { minHeight: 68, borderRadius: 16, borderWidth: 1, flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, gap: 12, marginBottom: 16 },
+  pathIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  pathCopy: { flex: 1, alignItems: "flex-end" },
+  pathTitle: { fontSize: 15, fontWeight: "800", textAlign: "right", writingDirection: "rtl" },
+  pathSubtitle: { fontSize: 11.5, marginTop: 3, textAlign: "right", writingDirection: "rtl" },
   loadingBox: { padding: 40, alignItems: "center" },
   card: { borderWidth: 1, borderRadius: 16, overflow: "hidden" },
   row: { minHeight: 72, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", gap: 12 },
   kindIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  rowCopy: { flex: 1 },
+  rowCopy: { flex: 1, alignItems: "flex-end" },
   rowTitle: { fontSize: 15.5, fontWeight: "800", textAlign: "right", writingDirection: "rtl" },
   rowDetail: { fontSize: 12, marginTop: 3, textAlign: "right", writingDirection: "rtl" },
   line: { height: 1 },
   deleteButton: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  backupButton: { marginTop: 16, height: 50, borderRadius: 14, borderWidth: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
-  backupText: { fontSize: 14, fontWeight: "800" },
   clearAll: { marginTop: 20, height: 52, borderRadius: 15, borderWidth: 1.5, borderColor: "#F1C7CD", backgroundColor: "#FFF5F6", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
-  clearAllText: { color: "#C83D4B", fontSize: 14.5, fontWeight: "900" },
+  clearAllText: { color: "#C83D4B", fontSize: 14.5, fontWeight: "900", writingDirection: "rtl" },
   note: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, padding: 13, borderRadius: 14, marginTop: 18 },
   noteText: { flex: 1, fontSize: 12, lineHeight: 19, textAlign: "right", writingDirection: "rtl" },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },

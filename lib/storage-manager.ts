@@ -50,21 +50,56 @@ export async function ensureStorageDirectories(): Promise<void> {
   }
 }
 
-
 export async function choosePublicStorageDirectory(): Promise<boolean> {
   if (!FileSystem.StorageAccessFramework) return false;
   const permission = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
   if (!permission.granted || !permission.directoryUri) return false;
   await AsyncStorage.setItem(PUBLIC_TREE_KEY, permission.directoryUri);
-  const root = await FileSystem.StorageAccessFramework.makeDirectoryAsync(permission.directoryUri, "hekma-aiman").catch(() => permission.directoryUri);
-  for (const folder of ["الصور", "الفيديو", "الصوت", "المستندات", "الرسائل", "الرسائل الصوتية", "الصادر", "الوارد"]) {
-    await FileSystem.StorageAccessFramework.makeDirectoryAsync(root, folder).catch(() => undefined);
-  }
+  
+  // إنشاء مجلد رئيسي فرعي للتطبيق في الذاكرة العامة
+  try {
+    const root = await FileSystem.StorageAccessFramework.makeDirectoryAsync(permission.directoryUri, "hekma-aiman").catch(() => permission.directoryUri);
+    for (const folder of ["الصور", "الفيديو", "الصوت", "المستندات", "الرسائل الصوتية"]) {
+      await FileSystem.StorageAccessFramework.makeDirectoryAsync(root, folder).catch(() => undefined);
+    }
+  } catch {}
+
   return true;
 }
 
 export async function getPublicStorageDirectory(): Promise<string | null> {
-  return AsyncStorage.getItem(PUBLIC_TREE_KEY);
+  const uri = await AsyncStorage.getItem(PUBLIC_TREE_KEY);
+  if (!uri) return null;
+  // إرجاع وصف مقروء للمسار العام للمستخدم
+  return "التخزين العام الخارجي / hekma-aiman";
+}
+
+// ==========================================
+// تصدير و نسخ الملف إلى المجلد العام تلقائياً
+// ==========================================
+
+async function exportToPublicStorageIfNeeded(localUri: string, fileName: string, mimeType: string): Promise<void> {
+  try {
+    const treeUri = await AsyncStorage.getItem(PUBLIC_TREE_KEY);
+    if (!treeUri || !FileSystem.StorageAccessFramework) return;
+
+    // قراءة الملف المحلي كـ Base64
+    const base64Data = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+    
+    // إنشاء الملف داخل المجلد العام الخارجي مباشرة
+    await FileSystem.StorageAccessFramework.createFileAsync(treeUri, fileName, mimeType)
+      .then(async (createdFileUri) => {
+        await FileSystem.writeAsStringAsync(createdFileUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+      })
+      .catch(async () => {
+        // محاولة بديلة داخل مجلد hekma-aiman الفرعي إذا وجد
+        const root = await FileSystem.StorageAccessFramework.makeDirectoryAsync(treeUri, "hekma-aiman").catch(() => treeUri);
+        const createdFileUri = await FileSystem.StorageAccessFramework.createFileAsync(root, fileName, mimeType);
+        await FileSystem.writeAsStringAsync(createdFileUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+      });
+  } catch {
+    // تجاهل أخطاء التصدير الخارجي لضمان عدم توقف الكاش الداخلي
+  }
 }
 
 // ==========================================
@@ -87,7 +122,7 @@ export function generateFileName(originalName: string, mediaId: string): string 
 }
 
 // ==========================================
-// حفظ ملف محلياً
+// حفظ ملف محلياً وتصديره تلقائياً للمسار العام
 // ==========================================
 
 export async function saveMediaLocally(
@@ -107,6 +142,8 @@ export async function saveMediaLocally(
   const info = await FileSystem.getInfoAsync(localUri);
 
   if (info.exists) {
+    // محاولة تصديره للمجلد العام حتى لو كان محفوظاً مسبقاً في الكاش
+    void exportToPublicStorageIfNeeded(localUri, fileName, mimeType);
     return {
       mediaId,
       localUri,
@@ -135,6 +172,9 @@ export async function saveMediaLocally(
   if (downloadResult.status !== 200) {
     throw new Error(`فشل تحميل الملف: ${downloadResult.status}`);
   }
+
+  // **الربط الفعلي الجديد:** تصدير الملف فور تنزيله إلى مجلد التخزين العام المختار
+  void exportToPublicStorageIfNeeded(localUri, fileName, mimeType);
 
   const downloaded: DownloadedMedia = {
     mediaId,
@@ -226,9 +266,7 @@ export async function calculateStorageUsage(): Promise<{ total: number; byKind: 
           }
         }
       }
-    } catch {
-      // تجاهل الأخطاء
-    }
+    } catch {}
   }
 
   return { total, byKind: usage };
@@ -247,9 +285,7 @@ export async function clearAllDownloadedMedia(): Promise<void> {
       if (info.exists) {
         await FileSystem.deleteAsync(dir, { idempotent: true });
       }
-    } catch {
-      // تجاهل الأخطاء
-    }
+    } catch {}
   }
 
   await AsyncStorage.removeItem(DOWNLOADED_MEDIA_KEY);
@@ -268,9 +304,7 @@ export async function clearMediaByKind(kind: MediaKind): Promise<void> {
       await FileSystem.deleteAsync(directory, { idempotent: true });
       await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
     }
-  } catch {
-    // تجاهل الأخطاء
-  }
+  } catch {}
 }
 
 // ==========================================

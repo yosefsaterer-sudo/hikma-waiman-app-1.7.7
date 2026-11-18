@@ -95,7 +95,7 @@ export default function ChatScreen() {
           <View style={styles.callActions} />
         </View>
         <View style={[styles.notice, { backgroundColor: palette.notice }]}><AppIcon name="lock-outline" size={15} color="#138A5B" /><Text style={[styles.noticeText, { color: palette.noticeText }]}>تحقّق من الهوية عند تفعيل الخادم الخاص.</Text></View>
-        <FlatList style={{ backgroundColor: "transparent" }} ref={listRef} data={messages} keyExtractor={(item) => item.id} renderItem={({ item }) => <MessageBubble message={item} conversationId={conversation.id} palette={palette} onLongPress={() => setActionMessage(item)} />} contentContainerStyle={styles.messageList} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" />
+        <FlatList style={{ backgroundColor: "transparent" }} ref={listRef} data={messages} keyExtractor={(item) => item.id} renderItem={({ item }) => <MessageBubble message={item} conversationId={conversation.id} palette={palette} onActions={() => setActionMessage(item)} />} contentContainerStyle={styles.messageList} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" />
         {attachmentsOpen ? <View style={styles.attachmentTray}>
           <AttachmentAction icon="photo-library" label="الصور والفيديو" onPress={pickGallery} disabled={picking} />
           <AttachmentAction icon="photo-camera" label="التقاط" onPress={takeMedia} disabled={picking} />
@@ -129,26 +129,32 @@ ${actionMessage.outgoing ? "رسالة صادرة" : "رسالة واردة"}\n�
   );
 }
 
-function MessageBubble({ message, conversationId, palette, onLongPress }: { message: ChatMessage; conversationId: string; palette: NativePalette; onLongPress: () => void }) {
+function MessageBubble({ message, conversationId, palette, onActions }: { message: ChatMessage; conversationId: string; palette: NativePalette; onActions: () => void }) {
   const { retryAttachment } = useMessenger();
   const messageOpacity = useRef(new Animated.Value(0)).current;
   const messageOffset = useRef(new Animated.Value(8)).current;
   useEffect(() => { Animated.parallel([Animated.timing(messageOpacity, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }), Animated.timing(messageOffset, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true })]).start(); }, [messageOffset, messageOpacity]);
-  return <Animated.View style={[styles.messageWrap, message.outgoing ? styles.outgoingWrap : styles.incomingWrap, { opacity: messageOpacity, transform: [{ translateY: messageOffset }] }]}><Pressable delayLongPress={350} onLongPress={onLongPress} style={[styles.bubble, message.outgoing ? styles.outgoingBubble : [styles.incomingBubble, { backgroundColor: palette.surface, borderColor: palette.border }]]}>{message.replyTo ? <View style={[styles.replyPreview, { backgroundColor: message.outgoing ? "rgba(255,255,255,0.14)" : palette.surfaceRaised }]}><Text numberOfLines={1} style={[styles.replyPreviewText, { color: message.outgoing ? "#FFFFFF" : palette.muted }]}>{message.replyTo.text || "مرفق"}</Text></View> : null}{message.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} outgoing={message.outgoing} palette={palette} onActions={onLongPress} onRetry={() => retryAttachment(conversationId, attachment.id)} />)}{message.text ? <Text style={[styles.messageText, { color: palette.text }, message.outgoing && styles.outgoingText, message.deleted && styles.deletedText]}>{message.text}</Text> : null}<View style={styles.messageMeta}><Text style={[styles.messageTime, { color: palette.muted }, message.outgoing && styles.outgoingTime]}>{message.time}</Text>{message.outgoing ? <AppIcon name={message.status === "read" ? "done-all" : "done"} size={14} color="#BFD4FF" /> : null}</View></Pressable></Animated.View>;
-}
-
-function MessageActionSheet({ message, onClose, onReply, onDelete, onForward }: { message: ChatMessage | null; onClose: () => void; onReply: (message: ChatMessage) => void; onDelete: (message: ChatMessage) => void; onForward: (message: ChatMessage) => void }) {
-  const share = async () => { if (!message) return; try { await Share.share({ message: message.text || "مرفق من حكمة وإيمان" }); } finally { onClose(); } };
-  return <Modal visible={Boolean(message)} transparent animationType="fade" onRequestClose={onClose}><Pressable style={styles.sheetBackdrop} onPress={onClose}><Pressable style={styles.actionSheet} onPress={() => undefined}><Text numberOfLines={2} style={styles.actionPreview}>{message?.text || "مرفق"}</Text><ActionButton icon="reply" label="رد" onPress={() => message && onReply(message)} /><ActionButton icon="forward" label="إعادة توجيه" onPress={() => message && onForward(message)} /><ActionButton icon="share" label="مشاركة" onPress={share} /><ActionButton icon="delete" label={message?.outgoing ? "حذف لدى الجميع" : "حذف من جهازي"} danger onPress={() => message && onDelete(message)} /><Pressable onPress={onClose} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></Pressable></Pressable></Modal>;
-}
-
-function ActionButton({ icon, label, danger, onPress }: { icon: AppIconName; label: string; danger?: boolean; onPress: () => void }) {
-  const color = danger ? "#C83D4B" : "#10233F";
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}><AppIcon name={icon} size={20} color={color} /><Text style={[styles.actionText, danger && styles.dangerText]}>{label}</Text></Pressable>;
-}
-
-function AttachmentAction({ icon, label, onPress, disabled }: { icon: AppIconName; label: string; onPress: () => void; disabled: boolean }) {
-  return <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.attachmentAction, (pressed || disabled) && styles.pressed]}><View style={styles.attachmentIcon}><AppIcon name={icon} size={21} color="#0B5FFF" /></View><Text style={styles.attachmentLabel}>{label}</Text></Pressable>;
+  return (
+    <Animated.View style={[styles.messageWrap, message.outgoing ? styles.outgoingWrap : styles.incomingWrap, { opacity: messageOpacity, transform: [{ translateY: messageOffset }] }]}>
+      <View style={[styles.bubble, message.outgoing ? styles.outgoingBubble : [styles.incomingBubble, { backgroundColor: palette.surface, borderColor: palette.border }]]}>
+        {message.replyTo ? (
+          <View style={[styles.replyPreview, { backgroundColor: message.outgoing ? "rgba(255,255,255,0.14)" : palette.surfaceRaised }]}>
+            <Text numberOfLines={1} style={[styles.replyPreviewText, { color: message.outgoing ? "#FFFFFF" : palette.muted }]}>{message.replyTo.text || "مرفق"}</Text>
+          </View>
+        ) : null}
+        {message.attachments?.map((attachment) => (
+          <AttachmentPreview key={attachment.id} attachment={attachment} outgoing={message.outgoing} palette={palette} onActions={onActions} onRetry={() => retryAttachment(conversationId, attachment.id)} />
+        ))}
+        {message.text ? (
+          <Text style={[styles.messageText, { color: palette.text }, message.outgoing && styles.outgoingText, message.deleted && styles.deletedText]}>{message.text}</Text>
+        ) : null}
+        <View style={styles.messageMeta}>
+          <Text style={[styles.messageTime, { color: palette.muted }, message.outgoing && styles.outgoingTime]}>{message.time}</Text>
+          {message.outgoing ? <AppIcon name={message.status === "read" ? "done-all" : "done"} size={14} color="#BFD4FF" /> : null}
+        </View>
+      </View>
+    </Animated.View>
+  );
 }
 
 function AttachmentPreview({ attachment, outgoing, palette, onActions, onRetry }: { attachment: MediaAttachment; outgoing: boolean; palette: NativePalette; onActions: () => void; onRetry: () => void }) {
@@ -163,10 +169,64 @@ function AttachmentPreview({ attachment, outgoing, palette, onActions, onRetry }
   useEffect(() => { if (!saving || localUri) return; downloadSpin.setValue(0); const loop = Animated.loop(Animated.timing(downloadSpin, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true })); loop.start(); return () => loop.stop(); }, [downloadSpin, localUri, saving]);
   const icon: Record<MediaAttachment["kind"], AppIconName> = { image: "image", video: "play-circle-filled", audio: "audiotrack", file: "insert-drive-file" };
   const isImage = attachment.kind === "image" && Boolean(localUri);
-  const save = async () => { setSaving(true); const result = await saveIncomingAttachment({ ...attachment, uri: localUri }); setSaving(false); Alert.alert(result.ok ? "تم الحفظ" : "تعذر الحفظ", result.message); };
   const download = async () => { if (!attachment.remoteUrl) return; setSaving(true); setDownloadProgress(0); try { const saved = await downloadAndSaveMedia(attachment.remoteUrl, attachment.id, attachment.name, attachment.mimeType, attachment.size || 0, setDownloadProgress); setDownloadProgress(100); setLocalUri(saved.localUri); } catch { Alert.alert("تعذر التنزيل", "تحقق من الاتصال بالخادم وحاول مرة أخرى."); } finally { setSaving(false); } };
   const playableAttachment = { ...attachment, uri: localUri };
-  return <Animated.View style={[styles.attachmentPreview, { opacity: attachmentOpacity, transform: [{ translateY: attachmentOffset }] }]}><Pressable accessibilityLabel="خيارات المرفق" onPress={onActions} style={[styles.attachmentMenu, { backgroundColor: palette.surface }]}><Text style={{ color: palette.text, fontSize: 20, lineHeight: 20 }}>⋮</Text></Pressable>{!localUri && attachment.remoteUrl ? <View style={[styles.downloadCard, { backgroundColor: palette.surfaceRaised, borderColor: palette.border }]}><View style={[styles.fileIcon, { backgroundColor: palette.surface }]}><AppIcon name={icon[attachment.kind]} size={25} color={palette.primary} /></View><View style={styles.fileCopy}><Text numberOfLines={1} style={[styles.fileName, { color: palette.text }]}>{attachment.name}</Text><Text style={[styles.fileMeta, { color: palette.muted }]}>{formatFileSize(attachment.size)} · {saving ? `جارٍ التنزيل ${downloadProgress}%` : "لم يُنزّل بعد"}</Text></View><Pressable onPress={() => void download()} disabled={saving} style={[styles.downloadButton, { backgroundColor: palette.primary }]}>{saving ? <><Animated.View style={{ transform: [{ rotate: downloadSpin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }] }}><ActivityIndicator size="small" color="#FFFFFF" /></Animated.View><Text style={styles.downloadPercent}>{downloadProgress}%</Text></> : <AppIcon name="download" size={20} color="#FFFFFF" />}</Pressable></View> : isImage ? <View><Image source={{ uri: localUri }} onLoad={() => setImageReady(true)} style={styles.imagePreview} resizeMode="cover" />{!imageReady ? <View style={styles.mediaLoading}><ActivityIndicator size="small" color={palette.primary} /><Text style={[styles.mediaLoadingText, { color: palette.primary }]}>جارٍ تحميل الصورة من المسار المحلي…</Text></View> : null}</View> : attachment.kind === "video" ? <VideoAttachment attachment={playableAttachment} /> : attachment.kind === "audio" ? <AudioAttachment attachment={playableAttachment} outgoing={outgoing} /> : <View style={[styles.filePreview, outgoing && styles.filePreviewOutgoing]}><View style={[styles.fileIcon, outgoing && styles.fileIconOutgoing]}><AppIcon name={icon[attachment.kind]} size={25} color={outgoing ? "#FFFFFF" : palette.primary} /></View><View style={styles.fileCopy}><Text numberOfLines={1} style={[styles.fileName, { color: outgoing ? "#FFFFFF" : palette.text }]}>{attachment.name}</Text><Text style={[styles.fileMeta, { color: outgoing ? "#D6E3FF" : palette.muted }]}>{formatFileSize(attachment.size)}</Text></View></View>}{!outgoing && localUri && attachment.transferState === "received" ? <Pressable disabled={saving} onPress={save} style={({ pressed }) => [styles.saveAttachment, { backgroundColor: palette.surfaceRaised }, (pressed || saving) && styles.pressed]}><AppIcon name="insert-drive-file" size={15} color={palette.primary} /><Text style={[styles.saveAttachmentText, { color: palette.primary }]}>{saving ? "جارٍ الحفظ…" : "حفظ في الجهاز"}</Text></Pressable> : null}{attachment.transferState === "sending" || attachment.transferState === "preparing" ? <View style={styles.transferOverlay}><ActivityIndicator size="small" color="#FFFFFF" /><Text style={styles.transferText}>جارٍ الإرسال {formatTransferProgress(attachment.progress)}</Text><View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${attachment.progress ?? 0}%` }]} /></View></View> : null}{attachment.transferState === "failed" ? <Pressable onPress={() => void download()} style={styles.failedLabel}><AppIcon name="refresh" size={14} color="#C83D4B" /><Text style={styles.failedText}>أعد المحاولة</Text></Pressable> : null}</Animated.View>;
+  return (
+    <View style={[styles.attachmentPreview, { opacity: attachmentOpacity }]}>
+      <Pressable accessibilityLabel="خيارات المرفق" onPress={onActions} style={[styles.attachmentMenu, { backgroundColor: palette.surface }]}>
+        <Text style={{ color: palette.text, fontSize: 20, lineHeight: 20 }}>⋮</Text>
+      </Pressable>
+      {!localUri && attachment.remoteUrl ? (
+        <View style={[styles.downloadCard, { backgroundColor: palette.surfaceRaised, borderColor: palette.border }]}>
+          <View style={[styles.fileIcon, { backgroundColor: palette.surface }]}><AppIcon name={icon[attachment.kind]} size={25} color={palette.primary} /></View>
+          <View style={styles.fileCopy}>
+            <Text numberOfLines={1} style={[styles.fileName, { color: palette.text }]}>{attachment.name}</Text>
+            <Text style={[styles.fileMeta, { color: palette.muted }]}>{formatFileSize(attachment.size)} · {saving ? `جارٍ التنزيل ${downloadProgress}%` : "لم يُنزّل بعد"}</Text>
+          </View>
+          <Pressable onPress={() => void download()} disabled={saving} style={[styles.downloadButton, { backgroundColor: palette.primary }]}>
+            {saving ? (
+              <>
+                <Animated.View style={{ transform: [{ rotate: downloadSpin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }] }}><ActivityIndicator size="small" color="#FFFFFF" /></Animated.View>
+                <Text style={styles.downloadPercent}>{downloadProgress}%</Text>
+              </>
+            ) : (
+              <AppIcon name="download" size={20} color="#FFFFFF" />
+            )}
+          </Pressable>
+        </View>
+      ) : isImage ? (
+        <View>
+          <Image source={{ uri: localUri }} onLoad={() => setImageReady(true)} style={styles.imagePreview} resizeMode="cover" />
+          {!imageReady ? <View style={styles.mediaLoading}><ActivityIndicator size="small" color={palette.primary} /><Text style={[styles.mediaLoadingText, { color: palette.primary }]}>جارٍ تحميل الصورة…</Text></View> : null}
+        </View>
+      ) : attachment.kind === "video" ? (
+        <VideoAttachment attachment={playableAttachment} />
+      ) : attachment.kind === "audio" ? (
+        <AudioAttachment attachment={playableAttachment} outgoing={outgoing} />
+      ) : (
+        <View style={[styles.filePreview, outgoing && styles.filePreviewOutgoing]}>
+          <View style={[styles.fileIcon, outgoing && styles.fileIconOutgoing]}><AppIcon name={icon[attachment.kind]} size={25} color={outgoing ? "#FFFFFF" : palette.primary} /></View>
+          <View style={styles.fileCopy}>
+            <Text numberOfLines={1} style={[styles.fileName, { color: outgoing ? "#FFFFFF" : palette.text }]}>{attachment.name}</Text>
+            <Text style={[styles.fileMeta, { color: outgoing ? "#D6E3FF" : palette.muted }]}>{formatFileSize(attachment.size)}</Text>
+          </View>
+        </View>
+      )}
+      {attachment.transferState === "sending" || attachment.transferState === "preparing" ? (
+        <View style={styles.transferOverlay}>
+          <ActivityIndicator size="small" color="#FFFFFF" />
+          <Text style={styles.transferText}>جارٍ الإرسال {formatTransferProgress(attachment.progress)}</Text>
+          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${attachment.progress ?? 0}%` }]} /></View>
+        </View>
+      ) : null}
+      {attachment.transferState === "failed" ? (
+        <Pressable onPress={() => void download()} style={styles.failedLabel}>
+          <AppIcon name="refresh" size={14} color="#C83D4B" />
+          <Text style={styles.failedText}>أعد المحاولة</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
 }
 
 function AudioAttachment({ attachment, outgoing }: { attachment: MediaAttachment; outgoing: boolean }) {
@@ -174,12 +234,44 @@ function AudioAttachment({ attachment, outgoing }: { attachment: MediaAttachment
   const status = useAudioPlayerStatus(player);
   useEffect(() => { setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined); }, []);
   const togglePlayback = () => { if (status.playing) player.pause(); else player.play(); };
-  return <Pressable onPress={togglePlayback} style={[styles.audioPreview, outgoing && styles.filePreviewOutgoing]}><View style={[styles.fileIcon, outgoing && styles.fileIconOutgoing]}><AppIcon name={status.playing ? "pause" : "play-arrow"} size={25} color={outgoing ? "#FFFFFF" : "#0B5FFF"} /></View><View style={styles.fileCopy}><Text numberOfLines={1} style={[styles.fileName, outgoing && styles.outgoingText]}>{attachment.name}</Text><View style={styles.audioLine}><View style={[styles.audioProgress, outgoing && styles.audioProgressOutgoing, { width: `${status.duration > 0 ? (status.currentTime / status.duration) * 100 : 0}%` }]} /></View><Text style={[styles.fileMeta, outgoing && styles.outgoingMeta]}>{status.playing ? "قيد التشغيل" : formatFileSize(attachment.size)}</Text></View></Pressable>;
+  return (
+    <Pressable onPress={togglePlayback} style={[styles.audioPreview, outgoing && styles.filePreviewOutgoing]}>
+      <View style={[styles.fileIcon, outgoing && styles.fileIconOutgoing]}><AppIcon name={status.playing ? "pause" : "play-arrow"} size={25} color={outgoing ? "#FFFFFF" : "#0B5FFF"} /></View>
+      <View style={styles.fileCopy}>
+        <Text numberOfLines={1} style={[styles.fileName, outgoing && styles.outgoingText]}>{attachment.name}</Text>
+        <View style={styles.audioLine}><View style={[styles.audioProgress, outgoing && styles.audioProgressOutgoing, { width: `${status.duration > 0 ? (status.currentTime / status.duration) * 100 : 0}%` }]} /></View>
+        <Text style={[styles.fileMeta, outgoing && styles.outgoingMeta]}>{status.playing ? "قيد التشغيل" : formatFileSize(attachment.size)}</Text>
+      </View>
+    </Pressable>
+  );
 }
 
 function VideoAttachment({ attachment }: { attachment: MediaAttachment }) {
-  const player = useVideoPlayer(attachment.uri, (videoPlayer) => { videoPlayer.loop = false; });
-  return <View style={styles.videoPreview}><VideoView style={styles.videoView} player={player} nativeControls allowsFullscreen allowsPictureInPicture contentFit="contain" /><View style={styles.videoCaption}><AppIcon name="movie" size={15} color="#FFFFFF" /><Text numberOfLines={1} style={styles.videoCaptionText}>{attachment.name}</Text></View></View>;
+  const player = useVideoPlayer(attachment.uri, (videoPlayer) => {
+    videoPlayer.loop = false;
+    videoPlayer.staysActiveInBackground = false;
+  });
+
+  useEffect(() => {
+    if (attachment.uri && player) {
+      try {
+        player.replace(attachment.uri);
+      } catch {}
+    }
+  }, [attachment.uri, player]);
+
+  return (
+    <View style={styles.videoPreview}>
+      <VideoView
+        style={styles.videoView}
+        player={player}
+        nativeControls
+        allowsFullscreen
+        allowsPictureInPicture
+        contentFit="contain"
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -212,10 +304,9 @@ const styles = StyleSheet.create({
   addButtonActive: { backgroundColor: "#D8E5FF" },
   input: { flex: 1, minHeight: 40, maxHeight: 94, backgroundColor: "#F3F6FB", borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, color: "#10233F", fontSize: 15, writingDirection: "rtl" },
   sendButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#0B5FFF" },
-  sendDisabled: { backgroundColor: "#AFC3EC" },
   replyBar: { width: "100%", flexDirection: "row-reverse", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 1 }, replyCopy: { flex: 1 }, replyLabel: { fontSize: 10.5, fontWeight: "900", textAlign: "right", writingDirection: "rtl" }, replyText: { fontSize: 11.5, marginTop: 2, textAlign: "right", writingDirection: "rtl" }, replyClose: { width: 30, height: 30, alignItems: "center", justifyContent: "center" }, replyPreview: { borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 7 }, replyPreviewText: { fontSize: 11.5, textAlign: "right", writingDirection: "rtl" }, deletedText: { fontStyle: "italic", opacity: 0.74 },
-  attachmentPreview: { marginBottom: 8, position: "relative", overflow: "hidden", borderRadius: 12 }, attachmentMenu: { position: "absolute", zIndex: 3, top: 6, right: 6, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", elevation: 2 }, downloadCard: { minWidth: 235, maxWidth: 280, minHeight: 74, borderRadius: 12, padding: 10, flexDirection: "row-reverse", alignItems: "center", gap: 9, borderWidth: 1 }, downloadButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, downloadPercent: { color: "#FFFFFF", fontSize: 9, fontWeight: "900", marginTop: 1 }, imagePreview: { width: 210, height: 150, borderRadius: 12, backgroundColor: "#DCE7F8" }, mediaLoading: { position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.62)" }, mediaLoadingText: { color: "#0B5FFF", fontSize: 11, fontWeight: "800", writingDirection: "rtl" }, saveAttachment: { marginTop: 5, alignSelf: "flex-end", flexDirection: "row-reverse", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 }, saveAttachmentText: { color: "#0B5FFF", fontSize: 11, fontWeight: "800", writingDirection: "rtl" },
-  filePreview: { minWidth: 210, maxWidth: 240, minHeight: 64, borderRadius: 12, padding: 10, flexDirection: "row-reverse", alignItems: "center", gap: 9, backgroundColor: "#EDF3FE" }, filePreviewOutgoing: { backgroundColor: "#216BFF" }, fileIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }, fileIconOutgoing: { backgroundColor: "#4E87FF" }, fileCopy: { flex: 1, minWidth: 0 }, fileName: { color: "#10233F", fontSize: 12.5, fontWeight: "800", textAlign: "right", writingDirection: "rtl" }, fileMeta: { color: "#63738E", fontSize: 11, marginTop: 4, textAlign: "right" }, outgoingMeta: { color: "#D6E3FF" }, transferOverlay: { position: "absolute", inset: 0, backgroundColor: "rgba(16,35,63,0.58)", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 18 }, transferText: { color: "#FFFFFF", fontSize: 11.5, fontWeight: "800", writingDirection: "rtl" }, progressTrack: { width: 140, height: 4, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.35)", overflow: "hidden" }, progressFill: { height: "100%", backgroundColor: "#FFFFFF", borderRadius: 3 }, failedLabel: { flexDirection: "row-reverse", gap: 3, alignItems: "center", marginTop: 5, alignSelf: "flex-start" }, failedText: { color: "#C83D4B", fontSize: 11, fontWeight: "700" }, audioPreview: { minWidth: 210, maxWidth: 240, minHeight: 64, borderRadius: 12, padding: 10, flexDirection: "row-reverse", alignItems: "center", gap: 9, backgroundColor: "#EDF3FE" }, audioLine: { height: 3, borderRadius: 2, overflow: "hidden", backgroundColor: "#C9D8EF", marginTop: 6 }, audioProgress: { height: "100%", backgroundColor: "#0B5FFF" }, audioProgressOutgoing: { backgroundColor: "#FFFFFF" }, videoPreview: { width: 220, height: 144, borderRadius: 12, overflow: "hidden", backgroundColor: "#10233F" }, videoView: { width: "100%", height: "100%" }, videoCaption: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row-reverse", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: "rgba(16,35,63,0.62)" }, videoCaptionText: { flex: 1, color: "#FFFFFF", fontSize: 10.5, fontWeight: "700", textAlign: "right", writingDirection: "rtl" },
+  attachmentPreview: { marginBottom: 8, position: "relative", overflow: "hidden", borderRadius: 12 }, attachmentMenu: { position: "absolute", zIndex: 3, top: 6, right: 6, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", elevation: 2 }, downloadCard: { minWidth: 235, maxWidth: 280, minHeight: 74, borderRadius: 12, padding: 10, flexDirection: "row-reverse", alignItems: "center", gap: 9, borderWidth: 1 }, downloadButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, downloadPercent: { color: "#FFFFFF", fontSize: 9, fontWeight: "900", marginTop: 1 }, imagePreview: { width: 210, height: 150, borderRadius: 12, backgroundColor: "#DCE7F8" }, mediaLoading: { position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.62)" }, mediaLoadingText: { color: "#0B5FFF", fontSize: 11, fontWeight: "800", writingDirection: "rtl" },
+  filePreview: { minWidth: 210, maxWidth: 240, minHeight: 64, borderRadius: 12, padding: 10, flexDirection: "row-reverse", alignItems: "center", gap: 9, backgroundColor: "#EDF3FE" }, filePreviewOutgoing: { backgroundColor: "#216BFF" }, fileIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }, fileIconOutgoing: { backgroundColor: "#4E87FF" }, fileCopy: { flex: 1, minWidth: 0 }, fileName: { color: "#10233F", fontSize: 12.5, fontWeight: "800", textAlign: "right", writingDirection: "rtl" }, fileMeta: { color: "#63738E", fontSize: 11, marginTop: 4, textAlign: "right" }, outgoingMeta: { color: "#D6E3FF" }, transferOverlay: { position: "absolute", inset: 0, backgroundColor: "rgba(16,35,63,0.58)", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 18 }, transferText: { color: "#FFFFFF", fontSize: 11.5, fontWeight: "800", writingDirection: "rtl" }, progressTrack: { width: 140, height: 4, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.35)", overflow: "hidden" }, progressFill: { height: "100%", backgroundColor: "#FFFFFF", borderRadius: 3 }, failedLabel: { flexDirection: "row-reverse", gap: 3, alignItems: "center", marginTop: 5, alignSelf: "flex-start" }, failedText: { color: "#C83D4B", fontSize: 11, fontWeight: "700" }, audioPreview: { minWidth: 210, maxWidth: 240, minHeight: 64, borderRadius: 12, padding: 10, flexDirection: "row-reverse", alignItems: "center", gap: 9, backgroundColor: "#EDF3FE" }, audioLine: { height: 3, borderRadius: 2, overflow: "hidden", backgroundColor: "#C9D8EF", marginTop: 6 }, audioProgress: { height: "100%", backgroundColor: "#0B5FFF" }, audioProgressOutgoing: { backgroundColor: "#FFFFFF" }, videoPreview: { width: 220, height: 156, borderRadius: 12, overflow: "hidden", backgroundColor: "#10233F" }, videoView: { width: "100%", height: "100%" },
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(4,12,25,0.45)", justifyContent: "flex-end", padding: 14 }, actionSheet: { backgroundColor: "#FFFFFF", borderRadius: 22, padding: 14 }, actionPreview: { color: "#68758A", textAlign: "right", writingDirection: "rtl", paddingHorizontal: 8, paddingVertical: 5, fontSize: 12.5 }, actionButton: { minHeight: 48, flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: "#EEF2F8" }, actionText: { color: "#10233F", fontSize: 15, fontWeight: "800", writingDirection: "rtl" }, dangerText: { color: "#C83D4B" }, cancelAction: { minHeight: 46, alignItems: "center", justifyContent: "center", marginTop: 7, backgroundColor: "#EDF3FE", borderRadius: 13 }, cancelText: { color: "#0B5FFF", fontSize: 15, fontWeight: "900" },
   pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
 });

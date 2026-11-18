@@ -53,7 +53,7 @@ export default function ConversationsScreen() {
     <ScreenContainer className="bg-background" containerClassName="bg-background">
       <View style={[styles.header, { backgroundColor: palette.background }]}>
         <View style={styles.titleRow}>
-          <View>
+          <View style={styles.titleCopy}>
             <Text style={[styles.kicker, { color: palette.primary, fontFamily: "sans-serif" }]}>حكمة وإيمان</Text>
             <Text style={[styles.title, { color: palette.text }]}>المحادثات</Text>
           </View>
@@ -97,7 +97,7 @@ export default function ConversationsScreen() {
         style={({ pressed }) => [styles.fab, { backgroundColor: palette.primary }, pressed && styles.pressed]}
         accessibilityLabel="بدء محادثة جديدة"
       >
-        <AppIcon name="chat-plus" size={24} color="#138A5B" />
+        <AppIcon name="chat-plus" size={24} color="#FFFFFF" />
       </Pressable>
 
       <ConversationActions
@@ -200,30 +200,31 @@ function ConversationActions({
 const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 12 },
   titleRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  kicker: { fontSize: 13, fontWeight: "800", textAlign: "right", letterSpacing: 0.2 },
-  title: { fontSize: 31, fontWeight: "800", textAlign: "right", lineHeight: 40 },
+  titleCopy: { alignItems: "flex-end" },
+  kicker: { fontSize: 13, fontWeight: "800", textAlign: "right", writingDirection: "rtl", letterSpacing: 0.2 },
+  title: { fontSize: 31, fontWeight: "800", textAlign: "right", writingDirection: "rtl", lineHeight: 40 },
   profileCircle: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   profileText: { color: "#FFFFFF", fontSize: 15, fontWeight: "800" },
   searchBox: { height: 48, borderRadius: 15, borderWidth: 1, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", gap: 9 },
-  searchInput: { flex: 1, fontSize: 15, writingDirection: "rtl" },
+  searchInput: { flex: 1, fontSize: 15, textAlign: "right", writingDirection: "rtl" },
   filters: { flexDirection: "row-reverse", gap: 9, marginTop: 14, marginBottom: 10 },
   chip: { minHeight: 34, paddingHorizontal: 14, justifyContent: "center", borderRadius: 18, borderWidth: 1 },
-  chipText: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  chipText: { fontSize: 13, fontWeight: "700", textAlign: "center", writingDirection: "rtl" },
   list: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 84 },
   row: { flexDirection: "row-reverse", alignItems: "center", minHeight: 76, gap: 12, borderBottomWidth: 1 },
   rowPressed: { opacity: 0.68 },
-  rowCenter: { flex: 1, minWidth: 0 },
+  rowCenter: { flex: 1, minWidth: 0, alignItems: "flex-end" },
   nameLine: { flexDirection: "row-reverse", gap: 5, alignItems: "center" },
   name: { fontSize: 16, fontWeight: "800", textAlign: "right", writingDirection: "rtl" },
   preview: { fontSize: 13.5, marginTop: 5, textAlign: "right", writingDirection: "rtl" },
-  rowMeta: { alignItems: "flex-end", alignSelf: "stretch", justifyContent: "center", minWidth: 39, gap: 5 },
+  rowMeta: { alignItems: "flex-start", alignSelf: "stretch", justifyContent: "center", minWidth: 44, gap: 5 },
   time: { fontSize: 11.5, textAlign: "left" },
   timeUnread: { fontWeight: "800" },
   unread: { minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   unreadText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
-  fab: { position: "absolute", left: 20, bottom: 24, width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", elevation: 6, shadowColor: "#0B5FFF", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  fab: { position: "absolute", left: 20, bottom: 24, width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", elevation: 6, shadowColor: "#0B5FFF", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   pressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
-  empty: { textAlign: "center", paddingTop: 42, fontSize: 14 },
+  empty: { textAlign: "center", paddingTop: 42, fontSize: 14, writingDirection: "rtl" },
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(4,12,25,0.45)", justifyContent: "flex-end", padding: 14 },
   sheet: { borderRadius: 22, padding: 16, borderWidth: 1 },
   sheetTitle: { fontSize: 16, fontWeight: "800", textAlign: "right", marginBottom: 14, writingDirection: "rtl" },

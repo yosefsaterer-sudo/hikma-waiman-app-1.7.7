@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { router } from "expo-router";
 
+import { AppIcon } from "@/components/app-icon";
 import { ScreenContainer } from "@/components/screen-container";
 import { getNativePalette } from "@/lib/native-palette";
 import { useThemeContext } from "@/lib/theme-provider";
@@ -74,17 +76,25 @@ export default function DownloadSettingsScreen() {
     return (
       <ScreenContainer className="bg-background">
         <View style={styles.centered}>
-          <Text style={{ color: palette.text }}>جارٍ التحميل...</Text>
+          <Text style={{ color: palette.text, writingDirection: "rtl" }}>جارٍ التحميل...</Text>
         </View>
       </ScreenContainer>
     );
   }
 
   return (
-    <ScreenContainer className="bg-background">
+    <ScreenContainer className="bg-background" containerClassName="bg-background">
+      <View style={[styles.topBar, { backgroundColor: palette.surface, borderBottomColor: palette.border }]}>
+        <Pressable accessibilityLabel="الرجوع" onPress={() => router.back()} style={styles.back}>
+          <AppIcon name="chevron-right" size={25} color={palette.text} />
+        </Pressable>
+        <Text style={[styles.topTitle, { color: palette.text }]}>التنزيل التلقائي</Text>
+        <View style={styles.back} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: palette.text }]}>التنزيل التلقائي</Text>
+          <Text style={[styles.title, { color: palette.text }]}>الوسائط والشبكات</Text>
           <Text style={[styles.subtitle, { color: palette.muted }]}>
             اختر أنواع الوسائط التي تريد تنزيلها تلقائياً حسب نوع الشبكة.
           </Text>
@@ -130,7 +140,7 @@ export default function DownloadSettingsScreen() {
           <View style={[styles.row, { borderBottomColor: palette.border }]}>
             <Text style={[styles.rowLabel, { color: palette.text }]}>جودة تحميل الوسائط</Text>
             <View style={styles.qualityButtons}>
-              {(["low", "medium", "high"] as const).map((quality) => (
+              {(["high", "medium", "low"] as const).map((quality) => (
                 <Pressable
                   key={quality}
                   onPress={() => {
@@ -159,7 +169,7 @@ export default function DownloadSettingsScreen() {
           <View style={styles.row}>
             <Text style={[styles.rowLabel, { color: palette.text }]}>جودة التنزيل التلقائي</Text>
             <View style={styles.qualityButtons}>
-              {(["low", "medium", "high"] as const).map((quality) => (
+              {(["high", "medium", "low"] as const).map((quality) => (
                 <Pressable
                   key={quality}
                   onPress={() => {
@@ -191,16 +201,19 @@ export default function DownloadSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  topBar: { height: 64, paddingHorizontal: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1 },
+  back: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  topTitle: { fontSize: 18, fontWeight: "900", writingDirection: "rtl", textAlign: "right" },
   scroll: { padding: 20, paddingBottom: 40 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { marginBottom: 20 },
-  title: { fontSize: 26, fontWeight: "800", textAlign: "right" },
-  subtitle: { fontSize: 13, marginTop: 8, textAlign: "right", lineHeight: 20 },
+  title: { fontSize: 26, fontWeight: "800", textAlign: "right", writingDirection: "rtl" },
+  subtitle: { fontSize: 13, marginTop: 8, textAlign: "right", writingDirection: "rtl", lineHeight: 20 },
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16 },
   cardHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  cardTitle: { fontSize: 17, fontWeight: "800", textAlign: "right" },
+  cardTitle: { fontSize: 17, fontWeight: "800", textAlign: "right", writingDirection: "rtl" },
   toggleAllButton: { padding: 6 },
-  toggleAllText: { fontSize: 13, fontWeight: "700" },
+  toggleAllText: { fontSize: 13, fontWeight: "700", writingDirection: "rtl" },
   row: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1 },
   rowLabel: { flex: 1, fontSize: 15, fontWeight: "600", textAlign: "right", writingDirection: "rtl" },
   qualityButtons: { flexDirection: "row-reverse", flexWrap: "wrap", justifyContent: "flex-start", gap: 6, maxWidth: "62%" },
