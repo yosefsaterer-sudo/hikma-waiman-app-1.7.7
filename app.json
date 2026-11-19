@@ -2,7 +2,7 @@
   "expo": {
     "name": "حكمة وإيمان",
     "slug": "arabic-secure-messenger",
-    "version": "1.7.8",
+    "version": "1.8.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "manusarabicsecuremessenger",
@@ -25,7 +25,7 @@
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
-      "versionCode": 10708,
+      "versionCode": 10801,
       "package": "com.app.arabicsecuremessenger",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
